@@ -1,0 +1,60 @@
+#!/bin/bash
+
+lv_mounted_path=`echo $1`
+hostname=`echo $2`
+password=`echo $3`
+address_1=`echo $4`
+address_2=`echo $5`
+gateway=`echo $6`
+ns1=`echo $7`
+ns2=`echo $8`
+
+
+
+/usr/sbin/chroot $lv_mounted_path /bin/bash > /dev/null <<EOF
+## create mouting dir
+mkdir -p /mnt/{proc,sys,dev}
+
+## mount proc
+mount -t proc none /mnt/proc
+mount --rbind /sys /mnt/sys
+mount --rbind /dev /mnt/dev
+
+## change hostname
+hostname $hostname
+echo "$hostname" > etc/hostname
+echo "\n"
+
+## change password
+chpasswd <<<"root:$password"
+
+## update ip
+echo "##loopback" > etc/network/interfaces
+echo "auto lo" >> etc/network/interfaces
+echo "iface lo inet loopback" >> etc/network/interfaces
+echo "\n"
+
+echo "##primary" >> etc/network/interfaces
+echo "auto eth0" >> etc/network/interfaces
+echo "iface eth0 inet static" >> etc/network/interfaces
+echo "address $address_1" >> etc/network/interfaces
+echo "netmask $ns1" >> etc/network/interfaces
+echo "gateway $gateway" >> etc/network/interfaces
+echo "\n "
+
+echo "##internal" >> etc/network/interfaces
+echo "auto eth1" >> etc/network/interfaces
+echo "iface eth1 inet static" >> etc/network/interfaces
+echo "address $address_2" >> etc/network/interfaces
+echo "netmask $ns2" >> etc/network/interfaces
+
+## umount proc
+umount /mnt/dev
+umount /mnt/sys
+umount /mnt/proc
+
+## rmdir
+rm /mnt/* -R
+
+exit
+EOF
